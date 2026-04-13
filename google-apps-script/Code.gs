@@ -29,7 +29,7 @@ const HEADERS = [
   "Email",
   "Section ID",
   "Section Title",
-  "Action"   // "completed" or "unchecked"
+  "Action"   // "started", "completed", or "unchecked"
 ];
 
 function doPost(e) {

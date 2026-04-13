@@ -102,6 +102,21 @@ export class ParticipantStore {
 
   // ── Progress tracking ────────────────────────────────────────
 
+  getStarted(): string[] {
+    return this.context.globalState.get<string[]>("wt.started", []);
+  }
+
+  isStarted(sectionId: string): boolean {
+    return this.getStarted().includes(sectionId);
+  }
+
+  async markStarted(sectionId: string): Promise<void> {
+    const list = this.getStarted();
+    if (!list.includes(sectionId)) {
+      await this.context.globalState.update("wt.started", [...list, sectionId]);
+    }
+  }
+
   getCompleted(): string[] {
     return this.context.globalState.get<string[]>("wt.completed", []);
   }
@@ -128,6 +143,7 @@ export class ParticipantStore {
 
   async resetProgress(): Promise<void> {
     await this.context.globalState.update("wt.completed", []);
+    await this.context.globalState.update("wt.started", []);
     await this.context.globalState.update("wt.feedback", {});
   }
 

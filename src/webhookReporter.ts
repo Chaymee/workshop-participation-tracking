@@ -5,7 +5,7 @@ import { Section } from "./sectionsLoader";
 export interface CompletionEvent {
   participant: Participant;
   section: Section;
-  action: "completed";
+  action: "completed" | "started";
   codespace: string;
   workshop: string;
 }

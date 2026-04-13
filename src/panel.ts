@@ -163,6 +163,7 @@ export class WorkshopPanel {
   private render() {
     const participant = this.store.getParticipant();
     const completed   = this.store.getCompleted();
+    const started     = this.store.getStarted();
     const total       = this.sections.length;
     const doneCount   = completed.length;
 
@@ -170,7 +171,8 @@ export class WorkshopPanel {
     const sectionsJson = JSON.stringify(
       this.sections.map(s => ({
         ...s,
-        done: completed.includes(s.id),
+        done:    completed.includes(s.id),
+        started: started.includes(s.id) && !completed.includes(s.id),
         feedback: feedback[s.id] || ""
       }))
     );
@@ -306,6 +308,15 @@ export class WorkshopPanel {
     align-self: center;
   }
 
+  .inprogress-badge {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: #f59e0b;
+    color: white;
+  }
+
   .done-badge, .fb-btn {
     font-size: 0.75em;
     padding: 2px 8px;
@@ -419,6 +430,7 @@ export class WorkshopPanel {
             \${s.description ? \`<div class="section-desc">\${esc(s.description)}</div>\` : ""}
           </div>
           <div class="section-badges">
+            \${s.started ? '<span class="inprogress-badge">In Progress</span>' : ""}
             \${s.done ? '<span class="done-badge">Done</span>' : ""}
             \${s.done ? \`<button class="fb-btn \${s.feedback ? "has-feedback" : ""}"
                           onclick="event.stopPropagation(); toggleFeedback('\${s.id}')">

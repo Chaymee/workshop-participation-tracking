@@ -6,6 +6,7 @@ export interface Section {
   id: string;
   title: string;
   description?: string;
+  triggerFile?: string;
 }
 
 const FALLBACK_SECTIONS: Section[] = [

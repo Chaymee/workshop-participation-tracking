@@ -2,41 +2,49 @@
   {
     "id": "s1",
     "title": "Environment Setup",
-    "description": "Open the Codespace and verify all tools are available"
+    "description": "Open the Codespace and verify all tools are available",
+    "triggerFile": "docs/01-environment-setup.md"
   },
   {
     "id": "s2",
     "title": "Connect to the Solace Broker",
-    "description": "Configure connection settings and verify broker connectivity"
+    "description": "Configure connection settings and verify broker connectivity",
+    "triggerFile": "docs/02-connect-broker.md"
   },
   {
     "id": "s3",
     "title": "Publish Your First Event",
-    "description": "Use the SAM CLI to publish a message to a topic"
+    "description": "Use the SAM CLI to publish a message to a topic",
+    "triggerFile": "docs/03-publish-event.md"
   },
   {
     "id": "s4",
     "title": "Subscribe to a Topic",
-    "description": "Create a subscription and receive your first event"
+    "description": "Create a subscription and receive your first event",
+    "triggerFile": "docs/04-subscribe-topic.md"
   },
   {
     "id": "s5",
     "title": "Create Your First Agent",
-    "description": "Define an agent manifest and register it with the mesh"
+    "description": "Define an agent manifest and register it with the mesh",
+    "triggerFile": "docs/05-create-agent.md"
   },
   {
     "id": "s6",
     "title": "Agent-to-Agent Messaging",
-    "description": "Wire two agents together and observe message flow"
+    "description": "Wire two agents together and observe message flow",
+    "triggerFile": "docs/06-agent-messaging.md"
   },
   {
     "id": "s7",
     "title": "Add a Tool to Your Agent",
-    "description": "Extend your agent with a custom tool action"
+    "description": "Extend your agent with a custom tool action",
+    "triggerFile": "docs/07-agent-tool.md"
   },
   {
     "id": "s8",
     "title": "Deploy the Agent Mesh",
-    "description": "Run the full mesh end-to-end and verify all agents respond"
+    "description": "Run the full mesh end-to-end and verify all agents respond",
+    "triggerFile": "docs/08-deploy-mesh.md"
   }
 ]
