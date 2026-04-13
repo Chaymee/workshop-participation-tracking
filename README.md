@@ -86,6 +86,139 @@ code --install-extension workshop-tracker-1.0.0.vsix
 
 ---
 
+## Alternative Backend: AWS Lambda + DynamoDB
+
+If you prefer AWS over Google Apps Script, you can replace the webhook backend with an API Gateway + Lambda function writing to DynamoDB. The extension only needs a URL that accepts a POST with a JSON body — the backend is fully swappable.
+
+### Architecture
+
+```
+Extension POST (JSON)
+  → API Gateway (HTTP API)
+  → Lambda function
+  → DynamoDB table (one item per event)
+```
+
+### 1. Create the DynamoDB Table
+
+```bash
+aws dynamodb create-table \
+  --table-name WorkshopTracker \
+  --attribute-definitions \
+    AttributeName=pk,AttributeType=S \
+    AttributeName=sk,AttributeType=S \
+  --key-schema \
+    AttributeName=pk,KeyType=HASH \
+    AttributeName=sk,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST
+```
+
+- `pk`: partition key — `{codespace}#{sectionId}` (groups a participant's section events)
+- `sk`: sort key — ISO timestamp (allows multiple events per section, e.g. `started` then `completed`)
+
+### 2. Lambda Function
+
+Create a function (Node.js 20.x runtime) with this handler:
+
+```javascript
+import { DynamoDBClient, PutItemCommand, DeleteItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+
+const db = new DynamoDBClient({});
+const TABLE = process.env.TABLE_NAME;
+
+export const handler = async (event) => {
+  const body = JSON.parse(event.body || "{}");
+  const { action, codespace, sectionId, sectionTitle, workshop,
+          gitName, gitEmail, githubUser, name, email, feedback } = body;
+
+  const timestamp = new Date().toISOString();
+
+  if (action === "reset") {
+    // Query all items for this participant and delete them
+    const result = await db.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: "begins_with(pk, :prefix)",
+      ExpressionAttributeValues: marshall({ ":prefix": `${codespace}#` })
+    }));
+    await Promise.all((result.Items || []).map(item =>
+      db.send(new DeleteItemCommand({ TableName: TABLE, Key: { pk: item.pk, sk: item.sk } }))
+    ));
+    return { statusCode: 200, body: JSON.stringify({ ok: true, action: "reset" }) };
+  }
+
+  if (action === "deleteSections") {
+    const ids = body.sectionIds || [];
+    await Promise.all(ids.map(id =>
+      db.send(new DeleteItemCommand({
+        TableName: TABLE,
+        Key: marshall({ pk: `${codespace}#${id}`, sk: "completed" })
+      }))
+    ));
+    return { statusCode: 200, body: JSON.stringify({ ok: true, action: "deleteSections" }) };
+  }
+
+  // Default: write the event (started, completed, feedback)
+  await db.send(new PutItemCommand({
+    TableName: TABLE,
+    Item: marshall({
+      pk: `${codespace}#${sectionId}`,
+      sk: action === "feedback" ? `feedback#${timestamp}` : action,
+      timestamp, workshop, codespace, sectionId, sectionTitle,
+      gitName, gitEmail, githubUser, name, email,
+      ...(action === "feedback" ? { feedback } : { action })
+    })
+  }));
+
+  return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+};
+```
+
+Give the Lambda execution role `dynamodb:PutItem`, `dynamodb:DeleteItem`, and `dynamodb:Query` on the table. Set `TABLE_NAME` as an environment variable.
+
+### 3. API Gateway
+
+Create an HTTP API in API Gateway with a single route:
+
+```
+POST /track  →  Lambda function (above)
+```
+
+Enable CORS if needed (the extension sends from a VS Code webview context, not a browser, so it's typically not required).
+
+Copy the invoke URL: `https://{api-id}.execute-api.{region}.amazonaws.com/track`
+
+### 4. Configure the Extension
+
+Use the API Gateway invoke URL as the webhook:
+
+```json
+"workshopTracker.webhookUrl": "https://{api-id}.execute-api.{region}.amazonaws.com/track"
+```
+
+### DynamoDB Item Schema
+
+Each item stored:
+
+| Attribute | Example | Notes |
+|---|---|---|
+| `pk` | `urban-disco-x1#s3` | `{codespace}#{sectionId}` |
+| `sk` | `completed` | `started`, `completed`, or `feedback#{timestamp}` |
+| `timestamp` | `2026-04-08T10:32:00Z` | ISO 8601 |
+| `workshop` | `SAM Workshop` | From extension setting |
+| `codespace` | `urban-disco-x1` | `CODESPACE_NAME` |
+| `sectionId` | `s3` | From `workshop-sections.json` |
+| `sectionTitle` | `Publish Your First Event` | |
+| `gitName` | `Arun K` | From `git config` |
+| `gitEmail` | `arun@x.com` | From `git config` |
+| `githubUser` | `arun-gh` | From VS Code GitHub OAuth |
+| `name` | `Arun K` | Resolved display name |
+| `email` | `arun@x.com` | Resolved display email |
+
+Feedback items use `sk: feedback#{timestamp}` so multiple feedback submissions per section are preserved.
+
+---
+
 ## Google Sheet Output
 
 Each completion creates a row:
