@@ -40,12 +40,16 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // ── Auto-open panel on startup ──────────────────────────────
-  const sections = await sectionsLoader.load();
-  panel = new WorkshopPanel(context, store, sections, () => {
-    panel = undefined;
-    updateStatusBar(store, sectionsLoader);
-  });
-  panel.onProgressChanged(() => updateStatusBar(store, sectionsLoader));
+  // Delay to ensure the VS Code window is fully ready to show webviews
+  setTimeout(async () => {
+    if (panel) return;
+    const sections = await sectionsLoader.load();
+    panel = new WorkshopPanel(context, store, sections, () => {
+      panel = undefined;
+      updateStatusBar(store, sectionsLoader);
+    });
+    panel.onProgressChanged(() => updateStatusBar(store, sectionsLoader));
+  }, 2000);
 
   // ── Reset Command ────────────────────────────────────────────
   context.subscriptions.push(
