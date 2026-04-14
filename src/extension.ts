@@ -39,6 +39,14 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // ── Auto-open panel on startup ──────────────────────────────
+  const sections = await sectionsLoader.load();
+  panel = new WorkshopPanel(context, store, sections, () => {
+    panel = undefined;
+    updateStatusBar(store, sectionsLoader);
+  });
+  panel.onProgressChanged(() => updateStatusBar(store, sectionsLoader));
+
   // ── Reset Command ────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand("workshopTracker.resetProgress", async () => {
