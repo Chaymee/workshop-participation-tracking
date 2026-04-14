@@ -49,7 +49,7 @@ export async function activate(context: vscode.ExtensionContext) {
       updateStatusBar(store, sectionsLoader);
     });
     panel.onProgressChanged(() => updateStatusBar(store, sectionsLoader));
-  }, 2000);
+  }, 10000);
 
   // ── Reset Command ────────────────────────────────────────────
   context.subscriptions.push(
