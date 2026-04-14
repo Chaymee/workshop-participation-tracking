@@ -117,7 +117,7 @@ export class WorkshopPanel {
         if (!folders || folders.length === 0) break;
         const uri = vscode.Uri.joinPath(folders[0].uri, section.triggerFile);
         try {
-          await vscode.commands.executeCommand("vscode.open", uri, vscode.ViewColumn.Two);
+          await vscode.commands.executeCommand("vscode.open", uri, vscode.ViewColumn.One);
         } catch {
           vscode.window.showWarningMessage(`Could not open ${section.triggerFile}`);
         }
