@@ -455,8 +455,9 @@ export class WorkshopPanel {
       <div class="section-item \${s.done ? "done" : ""}" id="section-\${s.id}">
         <div class="section-row">
           <input class="section-check" type="checkbox" \${s.done ? "checked" : ""}
-                 onclick="toggleSection('\${s.id}', event)" />
-          <div class="section-body" onclick="toggleSection('\${s.id}', event)">
+                 onclick="event.stopPropagation(); toggleSection('\${s.id}', event)" />
+          <div class="section-body" onclick="\${s.triggerFile ? \`openSection('\${s.id}')\` : \`toggleSection('\${s.id}', event)\`}"
+               style="\${s.triggerFile ? 'cursor:pointer;' : ''}">
             <div class="section-number">Section \${i + 1}</div>
             <div class="section-title">\${esc(s.title)}</div>
             \${s.description ? \`<div class="section-desc">\${esc(s.description)}</div>\` : ""}
@@ -468,7 +469,6 @@ export class WorkshopPanel {
                           onclick="event.stopPropagation(); toggleFeedback('\${s.id}')">
                           \${s.feedback ? "Feedback" : "Feedback"}
                         </button>\` : ""}
-            \${!s.done && s.triggerFile ? \`<button class="open-btn" onclick="event.stopPropagation(); openSection('\${s.id}')">Open</button>\` : ""}
           </div>
         </div>
         <div class="fb-area" id="fb-area-\${s.id}" style="display:none;"></div>
