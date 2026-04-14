@@ -17,6 +17,10 @@
       {
         "command": "workshopTracker.resetProgress",
         "title": "Workshop Tracker: Reset My Progress"
+      },
+      {
+        "command": "workshopTracker.completeAndOpen",
+        "title": "Workshop Tracker: Complete Section and Open Next"
       }
     ],
     "configuration": {

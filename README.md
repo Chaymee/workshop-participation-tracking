@@ -114,47 +114,84 @@ aws dynamodb create-table \
 ```
 
 - `pk`: partition key — `{codespace}#{sectionId}` (groups a participant's section events)
-- `sk`: sort key — ISO timestamp (allows multiple events per section, e.g. `started` then `completed`)
+- `sk`: sort key — `started`, `completed`, or `feedback#{timestamp}`
 
-### 2. Lambda Function
+Each section produces two separate items: one when opened (`started`) and one when completed (`completed`). This preserves both timestamps so you can calculate time spent per section.
 
-Create a function (Node.js 20.x runtime) with this handler:
+### 2. IAM Permissions
+
+The Lambda execution role needs the following permissions on the table. Replace `REGION`, `ACCOUNT_ID`, and `TABLE_NAME` with your values:
+
+```bash
+aws iam put-role-policy \
+  --role-name YOUR_LAMBDA_ROLE_NAME \
+  --policy-name DynamoDBAccess \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:REGION:ACCOUNT_ID:table/TABLE_NAME"
+    }]
+  }'
+```
+
+The role name is visible in the Lambda console under **Configuration → Permissions**.
+
+### 3. Lambda Function
+
+Create a function (Node.js 22.x runtime, handler `index.handler`) with this code. Set the `TABLE_NAME` environment variable to your DynamoDB table name.
 
 ```javascript
-import { DynamoDBClient, PutItemCommand, DeleteItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import { DynamoDBClient, PutItemCommand, DeleteItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 const db = new DynamoDBClient({});
-const TABLE = process.env.TABLE_NAME;
 
 export const handler = async (event) => {
+  const TABLE = process.env.TABLE_NAME;
   const body = JSON.parse(event.body || "{}");
   const { action, codespace, sectionId, sectionTitle, workshop,
           gitName, gitEmail, githubUser, name, email, feedback } = body;
 
   const timestamp = new Date().toISOString();
 
+  // reset: scan for all items belonging to this participant and delete them
   if (action === "reset") {
-    // Query all items for this participant and delete them
-    const result = await db.send(new QueryCommand({
+    const result = await db.send(new ScanCommand({
       TableName: TABLE,
-      KeyConditionExpression: "begins_with(pk, :prefix)",
-      ExpressionAttributeValues: marshall({ ":prefix": `${codespace}#` })
+      FilterExpression: "codespace = :cs",
+      ExpressionAttributeValues: marshall({ ":cs": codespace })
     }));
-    await Promise.all((result.Items || []).map(item =>
-      db.send(new DeleteItemCommand({ TableName: TABLE, Key: { pk: item.pk, sk: item.sk } }))
-    ));
+    await Promise.all((result.Items || []).map(item => {
+      const { pk, sk } = unmarshall(item);
+      return db.send(new DeleteItemCommand({
+        TableName: TABLE,
+        Key: marshall({ pk, sk })
+      }));
+    }));
     return { statusCode: 200, body: JSON.stringify({ ok: true, action: "reset" }) };
   }
 
+  // deleteSections: remove started and completed items for specific section IDs
   if (action === "deleteSections") {
     const ids = body.sectionIds || [];
-    await Promise.all(ids.map(id =>
+    const deletes = ids.flatMap(id => [
+      db.send(new DeleteItemCommand({
+        TableName: TABLE,
+        Key: marshall({ pk: `${codespace}#${id}`, sk: "started" })
+      })),
       db.send(new DeleteItemCommand({
         TableName: TABLE,
         Key: marshall({ pk: `${codespace}#${id}`, sk: "completed" })
       }))
-    ));
+    ]);
+    await Promise.allSettled(deletes);
     return { statusCode: 200, body: JSON.stringify({ ok: true, action: "deleteSections" }) };
   }
 
@@ -174,9 +211,7 @@ export const handler = async (event) => {
 };
 ```
 
-Give the Lambda execution role `dynamodb:PutItem`, `dynamodb:DeleteItem`, and `dynamodb:Query` on the table. Set `TABLE_NAME` as an environment variable.
-
-### 3. API Gateway
+### 4. API Gateway
 
 Create an HTTP API in API Gateway with a single route:
 
@@ -188,7 +223,7 @@ Enable CORS if needed (the extension sends from a VS Code webview context, not a
 
 Copy the invoke URL: `https://{api-id}.execute-api.{region}.amazonaws.com/track`
 
-### 4. Configure the Extension
+### 5. Configure the Extension
 
 Use the API Gateway invoke URL as the webhook:
 
@@ -203,7 +238,7 @@ Each item stored:
 | Attribute | Example | Notes |
 |---|---|---|
 | `pk` | `urban-disco-x1#s3` | `{codespace}#{sectionId}` |
-| `sk` | `completed` | `started`, `completed`, or `feedback#{timestamp}` |
+| `sk` | `started` | `started`, `completed`, or `feedback#{timestamp}` |
 | `timestamp` | `2026-04-08T10:32:00Z` | ISO 8601 |
 | `workshop` | `SAM Workshop` | From extension setting |
 | `codespace` | `urban-disco-x1` | `CODESPACE_NAME` |

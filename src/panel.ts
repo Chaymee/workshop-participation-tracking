@@ -79,26 +79,17 @@ export class WorkshopPanel {
           }
         } else {
           // Cascade: uncheck the toggled section and all sections after it
-          const uncheckedSections: Section[] = [];
           for (let i = sectionIdx; i < this.sections.length; i++) {
             const s = this.sections[i];
             if (this.store.isCompleted(s.id)) {
               await this.store.markUncompleted(s.id);
-              uncheckedSections.push(s);
             }
             // Clear feedback for unchecked sections
             if (this.store.getSectionFeedback(s.id)) {
               await this.store.saveSectionFeedback(s.id, "");
             }
           }
-          // Delete the unchecked rows from the sheet
-          if (uncheckedSections.length > 0) {
-            this.reporter.reportDeleteSections({
-              participant,
-              sections: uncheckedSections,
-              codespace
-            });
-          }
+          // No delete sent to backend — existing completed events are preserved
         }
 
         this.progressChangedEmitter.fire();

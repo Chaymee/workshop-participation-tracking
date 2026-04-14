@@ -39,6 +39,40 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // ── Complete and Open Command ────────────────────────────────
+  context.subscriptions.push(
+    vscode.commands.registerCommand("workshopTracker.completeAndOpen",
+      async (args: { current: string; next: string }) => {
+        if (!args?.current || !args?.next) return;
+
+        const sections = await sectionsLoader.load();
+        const section = sections.find(s => s.id === args.current);
+        if (!section) return;
+
+        if (!store.isCompleted(args.current)) {
+          await store.markCompleted(args.current);
+          const reporter = new WebhookReporter();
+          reporter.report({
+            participant: store.getParticipant(),
+            section,
+            action: "completed",
+            codespace: WebhookReporter.getCodespaceName(),
+            workshop: ""
+          });
+          panel?.refresh();
+          updateStatusBar(store, sectionsLoader);
+        }
+
+        // Open the next file
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) return;
+        const nextUri = vscode.Uri.joinPath(folders[0].uri, args.next);
+        const doc = await vscode.workspace.openTextDocument(nextUri);
+        await vscode.window.showTextDocument(doc);
+      }
+    )
+  );
+
   // ── Reset Command ────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand("workshopTracker.resetProgress", async () => {
