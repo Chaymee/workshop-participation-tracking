@@ -26,7 +26,7 @@ export class WorkshopPanel {
     this.panel = vscode.window.createWebviewPanel(
       "workshopTracker",
       "Workshop Tracker",
-      vscode.ViewColumn.Two,
+      vscode.ViewColumn.One,
       {
         enableScripts:       true,
         retainContextWhenHidden: true
@@ -97,6 +97,34 @@ export class WorkshopPanel {
         break;
       }
 
+      case "openSection": {
+        const section = this.sections.find(s => s.id === msg.sectionId);
+        if (!section?.triggerFile) break;
+
+        const participant = this.store.getParticipant();
+        const codespace = WebhookReporter.getCodespaceName();
+
+        if (!this.store.isStarted(section.id) && !this.store.isCompleted(section.id)) {
+          await this.store.markStarted(section.id);
+          this.reporter.report({
+            participant, section, action: "started", codespace, workshop: ""
+          });
+          this.progressChangedEmitter.fire();
+          this.render();
+        }
+
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) break;
+        const uri = vscode.Uri.joinPath(folders[0].uri, section.triggerFile);
+        try {
+          const doc = await vscode.workspace.openTextDocument(uri);
+          await vscode.window.showTextDocument(doc, vscode.ViewColumn.Two);
+        } catch {
+          vscode.window.showWarningMessage(`Could not open ${section.triggerFile}`);
+        }
+        break;
+      }
+
       case "sectionFeedback": {
         const section = this.sections.find(s => s.id === msg.sectionId);
         if (!section) break;
@@ -162,9 +190,10 @@ export class WorkshopPanel {
     const sectionsJson = JSON.stringify(
       this.sections.map(s => ({
         ...s,
-        done:    completed.includes(s.id),
-        started: started.includes(s.id) && !completed.includes(s.id),
-        feedback: feedback[s.id] || ""
+        done:        completed.includes(s.id),
+        started:     started.includes(s.id) && !completed.includes(s.id),
+        feedback:    feedback[s.id] || "",
+        triggerFile: s.triggerFile || ""
       }))
     );
 
@@ -299,6 +328,18 @@ export class WorkshopPanel {
     align-self: center;
   }
 
+  .open-btn {
+    font-size: 0.75em;
+    padding: 2px 10px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    border: none;
+    cursor: pointer;
+  }
+  .open-btn:hover { background: var(--btn-hover); }
+
   .inprogress-badge {
     font-size: 0.75em;
     padding: 2px 8px;
@@ -427,6 +468,7 @@ export class WorkshopPanel {
                           onclick="event.stopPropagation(); toggleFeedback('\${s.id}')">
                           \${s.feedback ? "Feedback" : "Feedback"}
                         </button>\` : ""}
+            \${!s.done && s.triggerFile ? \`<button class="open-btn" onclick="event.stopPropagation(); openSection('\${s.id}')">Open</button>\` : ""}
           </div>
         </div>
         <div class="fb-area" id="fb-area-\${s.id}" style="display:none;"></div>
@@ -436,6 +478,10 @@ export class WorkshopPanel {
         </div>\` : ""}
       </div>
     \`).join("");
+  }
+
+  function openSection(id) {
+    vscode.postMessage({ type: "openSection", sectionId: id });
   }
 
   function toggleSection(id, evt) {

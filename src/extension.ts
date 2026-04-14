@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { WorkshopPanel } from "./panel";
 import { ParticipantStore } from "./participantStore";
-import { SectionsLoader, Section } from "./sectionsLoader";
+import { SectionsLoader } from "./sectionsLoader";
 import { WebhookReporter } from "./webhookReporter";
 
 let statusBarItem: vscode.StatusBarItem;
@@ -39,40 +39,6 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // ── Complete and Open Command ────────────────────────────────
-  context.subscriptions.push(
-    vscode.commands.registerCommand("workshopTracker.completeAndOpen",
-      async (args: { current: string; next: string }) => {
-        if (!args?.current || !args?.next) return;
-
-        const sections = await sectionsLoader.load();
-        const section = sections.find(s => s.id === args.current);
-        if (!section) return;
-
-        if (!store.isCompleted(args.current)) {
-          await store.markCompleted(args.current);
-          const reporter = new WebhookReporter();
-          reporter.report({
-            participant: store.getParticipant(),
-            section,
-            action: "completed",
-            codespace: WebhookReporter.getCodespaceName(),
-            workshop: ""
-          });
-          panel?.refresh();
-          updateStatusBar(store, sectionsLoader);
-        }
-
-        // Open the next file
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders || folders.length === 0) return;
-        const nextUri = vscode.Uri.joinPath(folders[0].uri, args.next);
-        const doc = await vscode.workspace.openTextDocument(nextUri);
-        await vscode.window.showTextDocument(doc);
-      }
-    )
-  );
-
   // ── Reset Command ────────────────────────────────────────────
   context.subscriptions.push(
     vscode.commands.registerCommand("workshopTracker.resetProgress", async () => {
@@ -94,62 +60,6 @@ export async function activate(context: vscode.ExtensionContext) {
           participant,
           codespace: WebhookReporter.getCodespaceName()
         });
-      }
-    })
-  );
-
-  // ── Auto-complete via triggerFile ───────────────────────────
-  let previousUri: vscode.Uri | undefined =
-    vscode.window.activeTextEditor?.document.uri;
-
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-      const prevUri = previousUri;
-      previousUri = editor?.document.uri;
-
-      const sections = await sectionsLoader.load();
-
-      // started: emit once when a triggerFile is first opened
-      if (editor) {
-        const openedSection = findSectionByUri(sections, editor.document.uri);
-        if (openedSection && !store.isStarted(openedSection.id) && !store.isCompleted(openedSection.id)) {
-          await store.markStarted(openedSection.id);
-          const reporter = new WebhookReporter();
-          reporter.report({
-            participant: store.getParticipant(),
-            section: openedSection,
-            action: "started",
-            codespace: WebhookReporter.getCodespaceName(),
-            workshop: ""
-          });
-          panel?.refresh();
-          updateStatusBar(store, sectionsLoader);
-        }
-      }
-
-      // completed: auto-fire when navigating forward to the next sequential section
-      if (prevUri && editor) {
-        const prevSection = findSectionByUri(sections, prevUri);
-        const nextSection = findSectionByUri(sections, editor.document.uri);
-
-        if (prevSection && nextSection) {
-          const prevIdx = sections.findIndex(s => s.id === prevSection.id);
-          const nextIdx = sections.findIndex(s => s.id === nextSection.id);
-
-          if (nextIdx === prevIdx + 1 && !store.isCompleted(prevSection.id)) {
-            await store.markCompleted(prevSection.id);
-            const reporter = new WebhookReporter();
-            reporter.report({
-              participant: store.getParticipant(),
-              section: prevSection,
-              action: "completed",
-              codespace: WebhookReporter.getCodespaceName(),
-              workshop: ""
-            });
-            panel?.refresh();
-            updateStatusBar(store, sectionsLoader);
-          }
-        }
       }
     })
   );
@@ -236,13 +146,6 @@ function startReminder(store: ParticipantStore, loader: SectionsLoader) {
       vscode.commands.executeCommand("workshopTracker.openPanel");
     }
   }, ms);
-}
-
-function findSectionByUri(sections: Section[], uri: vscode.Uri): Section | undefined {
-  const normalized = uri.fsPath.replace(/\\/g, "/");
-  return sections.find(s =>
-    s.triggerFile && normalized.endsWith(s.triggerFile.replace(/\\/g, "/"))
-  );
 }
 
 export function deactivate() {
