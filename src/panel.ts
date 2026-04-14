@@ -101,16 +101,21 @@ export class WorkshopPanel {
         const section = this.sections.find(s => s.id === msg.sectionId);
         if (!section?.triggerFile) break;
 
-        const participant = this.store.getParticipant();
         const codespace = WebhookReporter.getCodespaceName();
 
-        if (!this.store.isStarted(section.id) && !this.store.isCompleted(section.id)) {
-          await this.store.markStarted(section.id);
+        if (!this.store.isCompleted(section.id)) {
+          const alreadyStarted = this.store.isStarted(section.id);
+          if (!alreadyStarted) {
+            await this.store.markStarted(section.id);
+            this.progressChangedEmitter.fire();
+            this.render();
+          }
+          // Ensure identity is resolved before reporting
+          await this.store.tryFetchGitConfig();
           this.reporter.report({
-            participant, section, action: "started", codespace, workshop: ""
+            participant: this.store.getParticipant(),
+            section, action: "started", codespace, workshop: ""
           });
-          this.progressChangedEmitter.fire();
-          this.render();
         }
 
         const folders = vscode.workspace.workspaceFolders;
