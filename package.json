@@ -61,7 +61,10 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/src/__tests__"]
+    "roots": ["<rootDir>/src/__tests__"],
+    "moduleNameMapper": {
+      "^vscode$": "<rootDir>/src/__mocks__/vscode.ts"
+    }
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
