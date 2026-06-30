@@ -4,9 +4,15 @@
   "description": "Tracks participant progress through Solace Agent Mesh workshop sections",
   "version": "1.0.0",
   "publisher": "solace-workshops",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -49,11 +55,20 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/src/__tests__"]
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "typescript": "^5.3.0"
   }
 }
