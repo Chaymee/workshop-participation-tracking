@@ -43,8 +43,13 @@ export class ParticipantStore {
 
   async tryFetchGitConfig(): Promise<{ name: string; email: string }> {
     try {
-      const name  = execSync("git config user.name",  { encoding: "utf8" }).trim();
-      const email = execSync("git config user.email", { encoding: "utf8" }).trim();
+      let name  = execSync("git config user.name",  { encoding: "utf8" }).trim();
+      let email = execSync("git config user.email", { encoding: "utf8" }).trim();
+
+      // Fall back to GITHUB_USER env var if git config returned nothing
+      if (!name) {
+        name = process.env["GITHUB_USER"] ?? "";
+      }
 
       // Store in dedicated git fields
       await this.saveParticipant({ gitName: name, gitEmail: email });

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { ParticipantStore } from "./participantStore";
 import { Section } from "./sectionsLoader";
 import { WebhookReporter } from "./webhookReporter";
+import { outputChannel } from "./extension";
 
 export class WorkshopPanel {
   private panel: vscode.WebviewPanel;
@@ -20,7 +21,7 @@ export class WorkshopPanel {
   ) {
     this.store    = store;
     this.sections = sections;
-    this.reporter = new WebhookReporter();
+    this.reporter = new WebhookReporter(outputChannel);
     this.onDispose = onDispose;
 
     this.panel = vscode.window.createWebviewPanel(

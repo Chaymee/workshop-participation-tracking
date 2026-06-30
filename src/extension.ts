@@ -8,7 +8,12 @@ let statusBarItem: vscode.StatusBarItem;
 let panel: WorkshopPanel | undefined;
 let reminderTimer: ReturnType<typeof setInterval> | undefined;
 
+export let outputChannel: vscode.OutputChannel;
+
 export async function activate(context: vscode.ExtensionContext) {
+  outputChannel = vscode.window.createOutputChannel("Workshop Tracker");
+  context.subscriptions.push(outputChannel);
+
   const store = new ParticipantStore(context);
   const sectionsLoader = new SectionsLoader();
 
@@ -67,7 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage("Workshop progress reset.");
 
         // Remove this participant's rows from the Google Sheet
-        const reporter = new WebhookReporter();
+        const reporter = new WebhookReporter(outputChannel);
         reporter.reportReset({
           participant,
           codespace: WebhookReporter.getCodespaceName()
@@ -86,7 +91,7 @@ export async function activate(context: vscode.ExtensionContext) {
       updateStatusBar(store, sectionsLoader);
       panel?.refreshSections(await sectionsLoader.load());
     } catch (err) {
-      console.warn("[WorkshopTracker] Failed to reload sections:", err);
+      outputChannel.appendLine(`[WorkshopTracker] Failed to reload sections: ${err}`);
     }
   });
   context.subscriptions.push(watcher);

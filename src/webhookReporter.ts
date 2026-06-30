@@ -11,6 +11,12 @@ export interface CompletionEvent {
 }
 
 export class WebhookReporter {
+  private log: vscode.OutputChannel;
+
+  constructor(log: vscode.OutputChannel) {
+    this.log = log;
+  }
+
   private getWebhookUrl(): string {
     return vscode.workspace
       .getConfiguration("workshopTracker")
@@ -41,6 +47,7 @@ export class WebhookReporter {
       action:       event.action
     };
 
+    this.log.appendLine(`[WorkshopTracker] POST ${url} — section: ${event.section.id} (${event.action})`);
     try {
       const res = await fetch(url, {
         method:  "POST",
@@ -49,11 +56,13 @@ export class WebhookReporter {
       });
 
       if (!res.ok) {
-        console.warn(`[WorkshopTracker] Webhook responded ${res.status}`);
+        this.log.appendLine(`[WorkshopTracker] Webhook responded ${res.status}`);
+      } else {
+        this.log.appendLine(`[WorkshopTracker] Webhook OK ${res.status}`);
       }
     } catch (err) {
       // Non-blocking — never surface network errors to participant
-      console.warn("[WorkshopTracker] Webhook post failed:", err);
+      this.log.appendLine(`[WorkshopTracker] Webhook post failed: ${err}`);
     }
   }
 
@@ -80,7 +89,7 @@ export class WebhookReporter {
         body:    JSON.stringify(payload)
       });
     } catch (err) {
-      console.warn("[WorkshopTracker] Webhook reset failed:", err);
+      this.log.appendLine(`[WorkshopTracker] Webhook reset failed: ${err}`);
     }
   }
 
@@ -112,7 +121,7 @@ export class WebhookReporter {
         body:    JSON.stringify(payload)
       });
     } catch (err) {
-      console.warn("[WorkshopTracker] Webhook deleteSections failed:", err);
+      this.log.appendLine(`[WorkshopTracker] Webhook deleteSections failed: ${err}`);
     }
   }
 
@@ -147,7 +156,7 @@ export class WebhookReporter {
         body:    JSON.stringify(payload)
       });
     } catch (err) {
-      console.warn("[WorkshopTracker] Webhook feedback failed:", err);
+      this.log.appendLine(`[WorkshopTracker] Webhook feedback failed: ${err}`);
     }
   }
 
